@@ -1,0 +1,1 @@
+{"name":"@radar/backend","private":true,"type":"module","scripts":{"dev":"node --watch --env-file-if-exists=.env src/server.js","start":"node --env-file-if-exists=.env src/server.js","test":"node --test test/*.test.js"},"dependencies":{"express":"^5.1.0","express-rate-limit":"^8.1.0","helmet":"^8.1.0","mongodb":"^6.20.0"}}
