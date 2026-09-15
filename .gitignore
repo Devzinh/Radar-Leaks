@@ -6,5 +6,6 @@ dist/
 *.pem
 .serena/
 .netlify/
+supabase/.temp/
 coverage/
 *.log

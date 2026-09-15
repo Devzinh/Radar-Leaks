@@ -17,7 +17,7 @@ export class GitHub {
     const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
     const now = Math.floor(Date.now() / 1000);
     const payload = `${encode({ alg: 'RS256', typ: 'JWT' })}.${encode({ iat: now - 60, exp: now + 540, iss: this.config.GITHUB_APP_ID })}`;
-    const key = await readFile(this.config.GITHUB_PRIVATE_KEY_PATH, 'utf8');
+    const key = this.config.GITHUB_PRIVATE_KEY?.replace(/\\n/g, '\n') || await readFile(this.config.GITHUB_PRIVATE_KEY_PATH, 'utf8');
     const signature = createSign('RSA-SHA256').update(payload).sign(key, 'base64url');
     const response = await fetch(`https://api.github.com/app/installations/${this.config.GITHUB_INSTALLATION_ID}/access_tokens`, {
       method: 'POST', headers: { Authorization: `Bearer ${payload}.${signature}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, signal: AbortSignal.timeout(20000),
