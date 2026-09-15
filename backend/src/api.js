@@ -53,7 +53,11 @@ export async function handleRequest(request, { env, ip = 'local', store = new St
     if (pathname === '/api/logout' && method === 'POST') return json({ ok: true }, 200, { 'Set-Cookie': cookie(env, '', 0) });
     const token = request.headers.get('cookie')?.split(';').map(v => v.trim()).find(c => c.startsWith('radar_session='))?.slice(14);
     if (!validSession(token, env.SESSION_SECRET)) return json({ error: 'Sign in required' }, 401);
-    if (pathname === '/api/dashboard' && method === 'GET') return json(await store.rpc('dashboard'));
+    if (pathname === '/api/dashboard' && method === 'GET') {
+      const dashboard = await store.rpc('dashboard');
+      const { seen, etag, ...collector } = await store.collectorState();
+      return json({ ...dashboard, collector });
+    }
     const match = /^\/api\/findings\/([a-f0-9-]{36})$/.exec(pathname);
     if (match && method === 'PATCH') {
       if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(match[1])) return json({ error: 'Invalid finding' }, 400);

@@ -15,7 +15,7 @@ test('production never advertises demo; APIs fail closed without configuration',
   assert.deepEqual(await response.json(), { configured: false, mode: 'unconfigured' });
 });
 test('login, cookie authentication, origin and shared rate limits', async () => {
-  const store = { rpc: async name => name === 'dashboard' ? { total: 0 } : true };
+  const store = { rpc: async name => name === 'dashboard' ? { total: 0 } : true, collectorState: async () => ({ status: 'active', seen: ['internal'], etag: 'internal' }) };
   const send = (path, init = {}) => handleRequest(new Request('https://radar.example/api' + path, init), { env, store });
   assert.equal((await send('/dashboard')).status, 401);
   assert.equal((await send('/login', { method: 'POST', body: '{}' })).status, 403);
@@ -23,6 +23,8 @@ test('login, cookie authentication, origin and shared rate limits', async () => 
   assert.equal(login.status, 200);
   const cookie = login.headers.get('set-cookie'); assert.match(cookie, /HttpOnly/); assert.match(cookie, /Secure/);
   assert.equal((await send('/dashboard', { headers: { cookie: cookie.split(';')[0] } })).status, 200);
+  const dashboard = await (await send('/dashboard', { headers: { cookie: cookie.split(';')[0] } })).json();
+  assert.deepEqual(dashboard.collector, { status: 'active' });
   const denied = await handleRequest(new Request('https://radar.example/api/dashboard'), { env, store: { rpc: async () => false } });
   assert.equal(denied.status, 429);
 });

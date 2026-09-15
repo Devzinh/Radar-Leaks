@@ -2,13 +2,17 @@ import { createServer } from 'node:http';
 import { handleRequest } from './api.js';
 import { configuration } from './config.js';
 import { runWorker } from './worker.js';
+import { collectPublic } from './collector.js';
 
 const env = process.env;
 let working = false;
 async function tick() {
   if (working || !configuration(env).configured) return;
   working = true;
-  try { await runWorker(env); } catch { console.error('Worker failed; next tick will retry'); }
+  try {
+    try { await collectPublic(env); } catch { console.error('Public collector unavailable'); }
+    await runWorker(env);
+  } catch { console.error('Worker failed; next tick will retry'); }
   finally { working = false; }
 }
 const server = createServer(async (req, res) => {

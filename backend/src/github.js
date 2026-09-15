@@ -44,7 +44,10 @@ export class GitHub {
     return data.token;
   }
   async addedText(repo, sha) {
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !/^[a-f0-9]{40}$/.test(sha)) throw new Error('Invalid commit target');
     const token = await this.token();
+    const metadata = await this.request(`/repos/${repo}`, token);
+    if (metadata.private !== false) throw new Error('Repository is not public');
     const files = [];
     let partial = false;
     for (let page = 1; page <= 30; page++) {
