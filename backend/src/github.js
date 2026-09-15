@@ -1,5 +1,21 @@
 import { readFile } from 'node:fs/promises';
-import { createSign } from 'node:crypto';
+import { createSign, createPrivateKey } from 'node:crypto';
+
+export function parsePrivateKey(value) {
+  try {
+    const text = value.replace(/\\n/g, '\n').trim();
+    const match = /^-----BEGIN (RSA PRIVATE KEY|PRIVATE KEY)-----([\s\S]*?)-----END \1-----$/.exec(text);
+    if (!match) throw new Error('Invalid PEM envelope');
+    const body = match[2].replace(/\s/g, '');
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(body)) throw new Error('Invalid PEM body');
+    const pem = `-----BEGIN ${match[1]}-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END ${match[1]}-----\n`;
+    const key = createPrivateKey(pem);
+    if (key.asymmetricKeyType !== 'rsa') throw new Error('GitHub requires an RSA key');
+    return key;
+  } catch {
+    throw new Error('GitHub private key is invalid; check GITHUB_PRIVATE_KEY');
+  }
+}
 
 export class GitHub {
   constructor(config) { this.config = config; this.cached = null; }
@@ -17,7 +33,7 @@ export class GitHub {
     const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
     const now = Math.floor(Date.now() / 1000);
     const payload = `${encode({ alg: 'RS256', typ: 'JWT' })}.${encode({ iat: now - 60, exp: now + 540, iss: this.config.GITHUB_APP_ID })}`;
-    const key = this.config.GITHUB_PRIVATE_KEY?.replace(/\\n/g, '\n') || await readFile(this.config.GITHUB_PRIVATE_KEY_PATH, 'utf8');
+    const key = parsePrivateKey(this.config.GITHUB_PRIVATE_KEY || await readFile(this.config.GITHUB_PRIVATE_KEY_PATH, 'utf8'));
     const signature = createSign('RSA-SHA256').update(payload).sign(key, 'base64url');
     const response = await fetch(`https://api.github.com/app/installations/${this.config.GITHUB_INSTALLATION_ID}/access_tokens`, {
       method: 'POST', headers: { Authorization: `Bearer ${payload}.${signature}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, signal: AbortSignal.timeout(20000),

@@ -1,6 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GitHub } from '../src/github.js';
+import { generateKeyPairSync, createSign, createVerify } from 'node:crypto';
+import { GitHub, parsePrivateKey } from '../src/github.js';
+
+test('RSA PEM survives multiline, escaped and space-flattened environment values', () => {
+  const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  for (const type of ['pkcs1', 'pkcs8']) {
+    const pem = privateKey.export({ type, format: 'pem' });
+    for (const value of [pem, pem.replaceAll('\n', '\\n'), pem.replaceAll('\n', ' ')]) {
+      const key = parsePrivateKey(value);
+      const signature = createSign('RSA-SHA256').update('synthetic payload').sign(key);
+      assert.equal(createVerify('RSA-SHA256').update('synthetic payload').verify(publicKey, signature), true);
+    }
+  }
+  assert.throws(() => parsePrivateKey('not a key'), /GitHub private key is invalid/);
+  assert.throws(() => parsePrivateKey('-----BEGIN RSA PRIVATE KEY-----invalid-----END RSA PRIVATE KEY-----'), /GitHub private key is invalid/);
+});
 
 test('commit extraction scans additions with actual line numbers and flags missing patches', async () => {
   const github = new GitHub({});

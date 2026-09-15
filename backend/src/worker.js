@@ -21,7 +21,7 @@ export async function runWorker(env, store = new Store(env), github = new GitHub
       const saved = await store.rpc('finish', { p_id: job.id, p_claim: job.claim_id, p_findings: findings, p_partial: result.partial });
       if (!saved) console.error('Scan lease expired before persistence');
     } catch (error) {
-      const message = /^(GitHub (HTTP|authentication HTTP)|Database HTTP) \d+$/.test(error.message) ? error.message : 'Scan failed; check integration connectivity';
+      const message = /^(GitHub (HTTP|authentication HTTP)|Database HTTP) \d+$/.test(error.message) || error.message === 'GitHub private key is invalid; check GITHUB_PRIVATE_KEY' ? error.message : 'Scan failed; check integration connectivity';
       await store.rpc('fail', { p_id: job.id, p_claim: job.claim_id, p_error: message });
       console.error(message);
     }
